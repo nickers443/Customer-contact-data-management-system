@@ -1,10 +1,10 @@
 (()=>{
+  const mainURL = 'http://localhost:3000/api/clients'
   const header = document.querySelector('.header__container')
   const container = document.querySelector('.main__container')
   const body = document.querySelector('body')
   const DELAY = 300
   const lazyLoad = preloader()
-  const mainURL = 'http://localhost:3000/api/clients'
   const sortState = {
     id: true,
     initials: false,
@@ -176,7 +176,6 @@
   function showsUsers(data) {
     const tbody = document.querySelector('tbody')
     tbody.innerHTML = ''
-
     if(data.length > 0) {
       data.forEach((element) => {
         const tr = document.createElement('tr')
@@ -307,41 +306,12 @@
   }
 
   function sortTitle(data, sortState) {
-    const getAllTitle = document.querySelectorAll('.table__th')
-    console.log(data)
+    const titles = document.querySelectorAll('.table__th')
     if(sortState.id) {
-      getAllTitle[0].classList.add('table__th-active')
-      getAllTitle[0].childNodes[1].classList.toggle('arrow__rotate')
-      data = sortById(data, sortState)
+      titles[0].classList.add('table__th-active')
+      titles[0].childNodes[1].classList.toggle('arrow__rotate')
+      sortById(data, sortState)
     }
-  
-    getAllTitle.forEach((title, index) => {
-      title.addEventListener('click', (e) => {
-        if(index <= 3) {
-          getAllTitle.forEach(nontarget => {
-            nontarget.classList.remove('table__th-active')
-          })
-          if(e.target.id === title.id) {
-            title.classList.add('table__th-active')
-            title.childNodes[1].classList.toggle('arrow__rotate')
-            console.log(data, 'click')
-          } 
-          if(title.id === 'th1') data = sortById(data, sortState)
-          if(title.id === 'th3') data = sortByDate(data, sortState, 'createdAt')
-          if(title.id === 'th4') data = sortByDate(data, sortState, 'updatedAt')
-          if(title.id === 'th2') {
-            data = sortByInitials(data, sortState)
-            if(title.childNodes[2].textContent === 'А-Я') {
-              title.childNodes[2].innerText = 'Я-А'
-            } else {
-              title.childNodes[2].innerText = 'А-Я'
-            }
-          }
-          showsUsers(data)
-        }
-      })
-    })
-
     return data
   }
 
@@ -387,18 +357,19 @@
 
   async function requestSearchUser(request) {
     let url = new URL(`${mainURL}`)
+    let newRequest = request.split(' ')
     url.searchParams.append('search', request)
     if(url.search.includes('+')) {
       url.searchParams.delete('search')
-      let newRequest = request.split(' ')
+      url.searchParams.append('search', newRequest[0])
       newRequest.forEach(value => {
-        url.searchParams.append('search', value)
+        if(value) {
+          url.searchParams.append('&', value)
+        }
       })
-      console.log(newRequest)
     }
-    console.log(url)
     const response = await fetch(url)
-    const data =  await response.json()
+    const data = await response.json()
     return data
   }
 
@@ -653,18 +624,16 @@
     
     mainButton.addEventListener('click', async (e) => {
       e.preventDefault()
-      let newData
       if(typeModal === 'deleteUser') {
         const response = await deleteUser(user)
         const errorRespone = catchResponse(response, error)
-        const data = await getData()
-        newData = sortTitle(data, sortState)
+        data = await getData()
         disableActionButton()
 
         if(!errorRespone) return
 
         setTimeout(() => {
-          showsUsers(newData)
+          showsUsers(data)
           closeModal()
         }, DELAY)
       } else {
@@ -674,32 +643,30 @@
           if(typeModal === 'newUser') {
             const response = await addUser(value)
             const errorRespone = catchResponse(response, error)
-            const data = await getData()
+            data = await getData()
 
             disabledInputs(container)
             disableActionButton()
 
             if(!errorRespone) return
             
-            newData = sortTitle(data, sortState)
             setTimeout(() => {
-              showsUsers(newData)
+              showsUsers(data)
               closeModal()
             }, DELAY)
           }
           if(typeModal === 'changeUser') {
             const response = await editUser(value, user.id)
             const errorRespone = catchResponse(response, error)
-            const data = await getData()
+            data = await getData()
 
             disabledInputs(container)
             disableActionButton()
 
             if(!errorRespone) return
 
-            newData = sortTitle(data, sortState)
             setTimeout(() => {
-              showsUsers(newData)
+              showsUsers(data)
               closeModal()
             }, DELAY)
           }
@@ -1070,7 +1037,8 @@
   }
 
   async function runApp() {
-    const data = await getData()
+    
+    let data = await getData()
 
     if(data.message) {
       createModal('serverError') 
@@ -1089,13 +1057,13 @@
     tableContainer.append(createTable())
 
     container.append(tableContainer)
-    let newData = sortTitle(data, sortState)
+    const titles = document.querySelectorAll('.table__th')
+    sortTitle(data, sortState)
 
     setTimeout(() => {
-      showsUsers(newData)
       lazyLoad.remove()
+      showsUsers(data)
     }, DELAY)
-
     container.append(buttonAddUser('Добавить пользователя'))
     
     let timerInput
@@ -1167,6 +1135,33 @@
       if(user.message) return createModal('notFound', hash) 
       createModal('changeUser', user) 
     }
+
+    titles.forEach((title, index) => {
+      title.addEventListener('click', async (e) => {
+        let data = await getData()
+        if(index <= 3) {
+          titles.forEach(nontarget => {
+            nontarget.classList.remove('table__th-active')
+          })
+          if(e.target.id === title.id) {
+            title.classList.add('table__th-active')
+            title.childNodes[1].classList.toggle('arrow__rotate')
+          } 
+          if(title.id === 'th1') data = sortById(data, sortState)
+          if(title.id === 'th3') data = sortByDate(data, sortState, 'createdAt')
+          if(title.id === 'th4') data = sortByDate(data, sortState, 'updatedAt')
+          if(title.id === 'th2') {
+            data = sortByInitials(data, sortState)
+            if(title.childNodes[2].textContent === 'А-Я') {
+              title.childNodes[2].innerText = 'Я-А'
+            } else {
+              title.childNodes[2].innerText = 'А-Я'
+            }
+          }
+          showsUsers(data)
+        }
+      })
+    })
   }
   runApp()
 })()
